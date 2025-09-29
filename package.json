@@ -1,0 +1,12 @@
+{
+  "name": "audio-relay",
+  "private": true,
+  "type": "module",
+  "dependencies": { "ws": "^8.18.0" },
+  "scripts": { "start": "node server.js" }
+}
+
+
+
+
+audio-relay/server.js
