@@ -1,332 +1,215 @@
-{\rtf1\ansi\ansicpg1252\cocoartf2709
-\cocoatextscaling0\cocoaplatform0{\fonttbl\f0\fswiss\fcharset0 Helvetica;}
-{\colortbl;\red255\green255\blue255;}
-{\*\expandedcolortbl;;}
-\margl1440\margr1440\vieww11520\viewh8400\viewkind0
-\pard\tx720\tx1440\tx2160\tx2880\tx3600\tx4320\tx5040\tx5760\tx6480\tx7200\tx7920\tx8640\pardirnatural\partightenfactor0
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Escuchar — WebSocket + AudioContext</title>
+  <style>
+    :root { color-scheme: dark; }
+    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial; margin:24px; background:#0b1020; color:#e9eef5}
+    .card{max-width:820px;margin:auto;background:#111936ee;border:1px solid #233152;border-radius:16px;padding:18px;box-shadow:0 10px 30px #0006}
+    .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+    input,button,select{border-radius:10px;border:1px solid #26314a;background:#0e162b;color:#e9eef5;padding:10px 12px}
+    input[type="range"]{width:220px}
+    button{background:linear-gradient(180deg,#2a8bd7,#1c66a1);border:none;font-weight:700;cursor:pointer}
+    button:disabled{opacity:.55;cursor:not-allowed}
+    .meter{height:12px;background:#0e162b;border:1px solid #26314a;border-radius:999px;overflow:hidden}
+    .bar{height:100%;width:0%;background:linear-gradient(90deg,#33e1a8,#7cf4ff)}
+    small{color:#9fb0c9}
+    h1{margin:0 0 8px 0;font-size:22px}
+    .sp{height:10px}
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>Escuchar — Cliente WebSocket + AudioContext</h1>
 
-\f0\fs24 \cf0 <!doctype html>\
-<html lang="es">\
-<head>\
-  <meta charset="utf-8" />\
-  <meta name="viewport" content="width=device-width, initial-scale=1" />\
-  <title>Escuchar \'97 ESP32 WS Audio</title>\
-  <style>\
-    :root \{ --bg:#0b1020; --fg:#e9eef5; --muted:#92a0b3; --accent:#5dd1ff; --ok:#47d16a; --bad:#ff6b6b; \}\
-    html,body \{ height:100%; margin:0; background:radial-gradient(1200px 800px at 70% -10%, #1a2440 0%, var(--bg) 60%); color:var(--fg); font:16px/1.35 system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, "Helvetica Neue", Arial, "Apple Color Emoji", "Segoe UI Emoji"; \}\
-    .wrap \{ max-width:720px; margin:24px auto; padding:16px; \}\
-    h1 \{ font-size:1.25rem; margin:0 0 12px; letter-spacing:0.3px; \}\
-    .card \{ background:#101831bb; border:1px solid #233152; border-radius:18px; padding:16px; box-shadow:0 10px 30px #0006; backdrop-filter: blur(8px); \}\
-    .row \{ display:flex; gap:10px; align-items:center; flex-wrap:wrap; \}\
-    label \{ font-size:0.9rem; color:var(--muted); \}\
-    input, select \{ background:#0e162b; color:var(--fg); border:1px solid #26314a; border-radius:10px; padding:10px 12px; outline:none; flex:1; min-width:180px; \}\
-    input:focus \{ border-color:#39538a; \}\
-    button \{ background:linear-gradient(180deg, #2a8bd7, #1c66a1); color:white; border:none; border-radius:14px; padding:12px 16px; font-weight:700; cursor:pointer; box-shadow:0 8px 20px #0007; \}\
-    button.secondary \{ background:#1f2a44; \}\
-    button:disabled \{ opacity:0.6; cursor:not-allowed; \}\
-    .controls \{ display:grid; grid-template-columns:repeat(2, minmax(200px,1fr)); gap:12px; \}\
-    .toggle \{ display:flex; align-items:center; gap:8px; \}\
-    .meter \{ height:10px; background:#0e162b; border:1px solid #26314a; border-radius:999px; overflow:hidden; \}\
-    .bar \{ height:100%; width:0%; background:linear-gradient(90deg, #33e1a8, #7cf4ff); transition:width .08s linear; \}\
-    .status \{ display:flex; gap:10px; align-items:center; color:var(--muted); font-size:0.95rem; \}\
-    .dot \{ width:10px; height:10px; border-radius:999px; background:#999; box-shadow:0 0 12px currentColor; \}\
-    .dot.on \{ background:var(--ok); \}\
-    .dot.err \{ background:var(--bad); \}\
-    .small \{ font-size:0.85rem; color:var(--muted); \}\
-    .spacer \{ height:8px; \}\
-    .right \{ margin-left:auto; \}\
-  </style>\
-</head>\
-<body>\
-  <div class="wrap">\
-    <h1>Escuchar \'97 Cliente WebSocket + AudioContext</h1>\
-    <div class="card">\
-      <div class="row">\
-        <label for="ws">Servidor WSS</label>\
-        <input id="ws" value="wss://tu-dominio:8443/?room=demo&role=listener" />\
-      </div>\
-      <div class="spacer"></div>\
-      <div class="row">\
-        <button id="play">\uc0\u9654 \u65038  Escuchar</button>\
-        <button id="stop" class="secondary" disabled>\uc0\u9632  Detener</button>\
-        <span class="status right"><span id="conn" class="dot"></span><span id="connText">Desconectado</span></span>\
-      </div>\
-      <div class="spacer"></div>\
-      <div class="controls">\
-        <div>\
-          <label for="buf">Buffer de jitter: <span id="bufv">100</span> ms</label>\
-          <input id="buf" type="range" min="40" max="240" step="10" value="100" />\
-        </div>\
-        <div>\
-          <label for="fmt">Formato</label>\
-          <select id="fmt">\
-            <option value="auto" selected>Auto (cabecera o PCM16)</option>\
-            <option value="pcm16">PCM16 16 kHz</option>\
-            <option value="mulaw">\uc0\u956 -law 16 kHz</option>\
-          </select>\
-        </div>\
-        <div class="toggle"><input id="hp" type="checkbox" checked /><label for="hp">High-pass 100 Hz</label></div>\
-        <div class="toggle"><input id="lp" type="checkbox" checked /><label for="lp">Low-pass 4.5 kHz</label></div>\
-        <div class="toggle"><input id="notch" type="checkbox" /><label for="notch">Notch hum</label>\
-          <select id="humf"><option value="60">60 Hz</option><option value="50">50 Hz</option></select>\
-        </div>\
-        <div class="toggle"><input id="comp" type="checkbox" checked /><label for="comp">Compresor (voz)</label></div>\
-      </div>\
-      <div class="spacer"></div>\
-      <div>\
-        <div class="meter"><div id="vu" class="bar"></div></div>\
-        <div class="small">Nivel (RMS aprox.)</div>\
-      </div>\
-    </div>\
-    <p class="small">Tip: puedes pasar <code>?ws=wss://\'85&room=salon1</code> en la URL; si no, usa el campo de arriba.</p>\
-  </div>\
-\
-  <script>\
-  // \'97\'97\'97\'97\'97\'97\'97\'97\'97\'97\'97\'97\'97\'97\'97\'97\'97\'97\'97\'97\'97\'97\'97\'97\'97\'97\'97\'97\'97\'97\'97\'97\'97\'97\'97\'97\'97\'97\'97\'97\'97\'97\'97\'97\'97\'97\'97\'97\
-  // Utilidad: lee par\'e1metros de la URL\
-  const params = new URLSearchParams(location.search);\
-  const qsWS = params.get('ws');\
-  const qsRoom = params.get('room');\
-  if (qsWS && !document.getElementById('ws').value.startsWith('ws')) \{\
-    document.getElementById('ws').value = qsWS;\
-  \}\
-  if (qsRoom) \{\
-    const url = new URL(document.getElementById('ws').value, location.href);\
-    url.searchParams.set('room', qsRoom);\
-    document.getElementById('ws').value = url.toString();\
-  \}\
-\
-  let ctx, workletNode, socket;\
-  let hpF, lpF, notchF, comp;\
-  let connected = false;\
-\
-  const playBtn = document.getElementById('play');\
-  const stopBtn = document.getElementById('stop');\
-  const vuBar = document.getElementById('vu');\
-  const connDot = document.getElementById('conn');\
-  const connText = document.getElementById('connText');\
-\
-  const fmtSel = document.getElementById('fmt');\
-\
-  function setConn(state, err=false)\{\
-    connected = state;\
-    connDot.className = 'dot' + (state ? ' on' : (err ? ' err' : ''));\
-    connText.textContent = state ? 'Conectado' : (err ? 'Error' : 'Desconectado');\
-  \}\
-\
-  // Crea Blob con el c\'f3digo del AudioWorklet para evitar archivo separado\
-  const workletCode = `\
-    class NetPlayer extends AudioWorkletProcessor \{\
-      constructor(options)\{\
-        super();\
-        const o = options.processorOptions || \{\};\
-        this.inRate = o.inRate || 16000;\
-        this.mode = o.mode || 'auto'; // 'auto' | 'pcm16' | 'mulaw'\
-        this.targetMs = o.jitterMs || 100;\
-        this.queue = [];\
-        this.queuedSamples = 0;\
-        this.started = false;\
-        this.vu = 0;\
-        this.port.onmessage = (e)=>\{\
-          const d = e.data;\
-          if (d && d.type === 'cfg')\{\
-            if (typeof d.jitterMs === 'number') this.targetMs = d.jitterMs;\
-            if (d.mode) this.mode = d.mode;\
-            return;\
-          \}\
-          const u8 = new Uint8Array(e.data);\
-          let payload = u8;\
-          let mode = this.mode;\
-          if (mode === 'auto')\{\
-            // Cabecera opcional: 12 bytes: magic 0xA1C1, seq(2), ts(4), codec(1), sr(1), ch(1), frame_ms(1)\
-            if (u8.length > 12) \{\
-              const dv = new DataView(u8.buffer, u8.byteOffset, u8.byteLength);\
-              const magicLE = dv.getUint16(0, true);\
-              const magicBE = dv.getUint16(0, false);\
-              if (magicLE === 0xA1C1 || magicBE === 0xA1C1)\{\
-                const codec = dv.getUint8(8);\
-                const srk = dv.getUint8(9);\
-                this.inRate = srk * 1000 || this.inRate;\
-                mode = (codec === 1) ? 'mulaw' : 'pcm16';\
-                payload = new Uint8Array(u8.buffer, u8.byteOffset + 12, u8.byteLength - 12);\
-              \} else \{\
-                mode = 'pcm16';\
-              \}\
-            \} else \{\
-              mode = 'pcm16';\
-            \}\
-          \}\
-          let f32;\
-          if (mode === 'mulaw')\{\
-            const src = new Uint8Array(payload.buffer, payload.byteOffset, payload.byteLength);\
-            f32 = new Float32Array(src.length);\
-            for (let i=0;i<src.length;i++)\{\
-              const u = 255 - src[i];\
-              const sign = (u & 0x80) ? -1 : 1;\
-              let exp = (u >> 4) & 0x07;\
-              let mant = u & 0x0F;\
-              let mag = ((mant << 3) + 0x84) << (exp);\
-              let s = sign * (mag - 0x84);\
-              if (s < -32768) s = -32768; else if (s > 32767) s = 32767;\
-              f32[i] = s / 32768;\
-            \}\
-          \} else \{ // pcm16 LE\
-            const s16 = new Int16Array(payload.buffer, payload.byteOffset, payload.byteLength/2);\
-            f32 = new Float32Array(s16.length);\
-            for (let i=0;i<s16.length;i++) f32[i] = s16[i] / 32768;\
-          \}\
-          // Acumula en cola (a 16 kHz, se re-muestrea en process)\
-          this.queue.push(f32);\
-          this.queuedSamples += f32.length;\
-        \};\
-      \}\
-      _resampleLinear(src, inRate, outRate)\{\
-        if (inRate === outRate) return src;\
-        const ratio = outRate / inRate;\
-        const out = new Float32Array(Math.round(src.length * ratio));\
-        for (let i=0;i<out.length;i++)\{\
-          const x = i / ratio;\
-          const i0 = x|0; const i1 = Math.min(i0+1, src.length-1);\
-          const t = x - i0; out[i] = src[i0]*(1-t) + src[i1]*t;\
-        \}\
-        return out;\
-      \}\
-      process(inputs, outputs)\{\
-        const out = outputs[0][0];\
-        out.fill(0);\
-        // Espera hasta que haya targetMs en cola (jitter)\
-        const want = Math.round(sampleRate * (this.targetMs/1000));\
-        if (!this.started)\{\
-          if (this.queuedSamples < want) return true;\
-          this.started = true;\
-        \}\
-        let written = 0;\
-        let vuAcc = 0, vuN=0;\
-        while (written < out.length && this.queue.length)\{\
-          const chunk = this._resampleLinear(this.queue[0], this.inRate, sampleRate);\
-          const need = Math.min(out.length - written, chunk.length);\
-          out.set(chunk.subarray(0, need), written);\
-          // estad\'edstica VU\
-          for (let i=0;i<need;i++)\{ const v=chunk[i]; vuAcc += v*v; \}\
-          vuN += need;\
-          written += need;\
-          if (need < chunk.length)\{\
-            // devolver el resto (ya remuestreado) al frente\
-            this.queue[0] = chunk.subarray(need);\
-            this.queuedSamples -= Math.round(need * (this.inRate / sampleRate));\
-          \} else \{\
-            this.queue.shift();\
-            this.queuedSamples -= Math.round(chunk.length * (this.inRate / sampleRate));\
-          \}\
-        \}\
-        if (vuN>0)\{ this.vu = Math.sqrt(vuAcc / vuN); this.port.postMessage(\{type:'vu', value:this.vu\}); \}\
-        return true;\
-      \}\
-    \}\
-    registerProcessor('net-player', NetPlayer);\
-  `;\
-\
-  const workletURL = URL.createObjectURL(new Blob([workletCode], \{type:'application/javascript'\}));\
-\
-  async function startAudio()\{\
-    if (!ctx) \{\
-      ctx = new (window.AudioContext || window.webkitAudioContext)();\
-      await ctx.audioWorklet.addModule(workletURL);\
-      workletNode = new AudioWorkletNode(ctx, 'net-player', \{ processorOptions: \{ inRate:16000, jitterMs: parseInt(document.getElementById('buf').value,10), mode: fmtSel.value \} \});\
-\
-      // Cadena de efectos (HP -> Notch -> LP -> Comp)\
-      hpF = ctx.createBiquadFilter(); hpF.type='highpass'; hpF.frequency.value=100; hpF.Q.value=0.707;\
-      notchF = ctx.createBiquadFilter(); notchF.type='notch'; notchF.frequency.value = (document.getElementById('humf').value|0) || 60; notchF.Q.value=30;\
-      lpF = ctx.createBiquadFilter(); lpF.type='lowpass'; lpF.frequency.value=4500; lpF.Q.value=0.707;\
-      comp = ctx.createDynamicsCompressor();\
-      comp.threshold.value = -18; comp.knee.value=6; comp.ratio.value=3; comp.attack.value=0.005; comp.release.value=0.1;\
-\
-      // Conexi\'f3n condicional seg\'fan toggles\
-      const chain = [];\
-      chain.push(workletNode);\
-      if (document.getElementById('hp').checked) chain.push(hpF);\
-      if (document.getElementById('notch').checked) chain.push(notchF);\
-      if (document.getElementById('lp').checked) chain.push(lpF);\
-      if (document.getElementById('comp').checked) chain.push(comp);\
-      chain.push(ctx.destination);\
-      for (let i=0;i<chain.length-1;i++) chain[i].connect(chain[i+1]);\
-\
-      // VU meter\
-      workletNode.port.onmessage = (ev)=>\{\
-        if (ev.data && ev.data.type==='vu')\{\
-          const rms = ev.data.value; // 0..1 aprox\
-          const pct = Math.min(100, Math.max(0, (20*Math.log10(rms+1e-6)+60)/60*100));\
-          vuBar.style.width = pct.toFixed(1)+'%';\
-        \}\
-      \};\
-    \}\
-    if (ctx.state === 'suspended') await ctx.resume();\
-  \}\
-\
-  function connectWS()\{\
-    const url = document.getElementById('ws').value.trim();\
-    try \{ if (socket) \{ socket.close(); \} \} catch(_)\{ \}\
-    socket = new WebSocket(url);\
-    socket.binaryType = 'arraybuffer';\
-    socket.onopen = ()=> \{ setConn(true); \};\
-    socket.onclose = ()=> \{ setConn(false); \};\
-    socket.onerror = ()=> \{ setConn(false, true); \};\
-    socket.onmessage = (ev)=>\{\
-      // Pasa el buffer al worklet (transferible para menos GC)\
-      const ab = ev.data;\
-      workletNode.port.postMessage(ab, [ab]);\
-    \};\
-  \}\
-\
-  // UI wiring\
-  document.getElementById('buf').addEventListener('input', (e)=>\{\
-    document.getElementById('bufv').textContent = e.target.value;\
-    if (workletNode) workletNode.port.postMessage(\{type:'cfg', jitterMs: parseInt(e.target.value,10)\});\
-  \});\
-  document.getElementById('humf').addEventListener('change', (e)=>\{ if (notchF) notchF.frequency.value = parseInt(e.target.value,10); \});\
-  fmtSel.addEventListener('change', ()=>\{ if (workletNode) workletNode.port.postMessage(\{type:'cfg', mode: fmtSel.value\}); \});\
-\
-  playBtn.addEventListener('click', async ()=>\{\
-    playBtn.disabled = true;\
-    try \{\
-      await startAudio();\
-      connectWS();\
-      stopBtn.disabled = false;\
-    \} catch (err)\{\
-      console.error(err); setConn(false, true); playBtn.disabled = false;\
-    \}\
-  \});\
-\
-  stopBtn.addEventListener('click', ()=>\{\
-    try \{ if (socket) socket.close(); \} catch(_)\{ \}\
-    try \{ if (ctx && ctx.state !== 'closed') ctx.suspend(); \} catch(_)\{ \}\
-    setConn(false);\
-    stopBtn.disabled = true; playBtn.disabled = false;\
-  \});\
-\
-  // Activa/desactiva filtros en caliente\
-  function rebuildChain()\{\
-    if (!ctx || !workletNode) return;\
-    workletNode.disconnect(); hpF.disconnect(); notchF.disconnect(); lpF.disconnect(); comp.disconnect();\
-    const chain = [workletNode];\
-    if (document.getElementById('hp').checked) chain.push(hpF);\
-    if (document.getElementById('notch').checked) chain.push(notchF);\
-    if (document.getElementById('lp').checked) chain.push(lpF);\
-    if (document.getElementById('comp').checked) chain.push(comp);\
-    chain.push(ctx.destination);\
-    for (let i=0;i<chain.length-1;i++) chain[i].connect(chain[i+1]);\
-  \}\
-  ['hp','lp','notch','comp'].forEach(id=> document.getElementById(id).addEventListener('change', rebuildChain));\
-\
-  // Autocompletar ws con room si s\'f3lo pasaron ?room=...\
-  (function ensureRoomParam()\{\
-    const url = new URL(document.getElementById('ws').value, location.href);\
-    if (params.get('room') && !url.searchParams.get('room'))\{\
-      url.searchParams.set('room', params.get('room'));\
-      document.getElementById('ws').value = url.toString();\
-    \}\
-  \})();\
-  </script>\
-</body>\
-</html>\
-}
+    <div class="row">
+      <label for="ws">Servidor WSS</label>
+      <input id="ws" style="flex:1" value="wss://audio-32.deno.dev/?room=demo&role=listener" />
+      <button id="play">▶︎ Escuchar</button>
+      <button id="stop" disabled>■ Detener</button>
+    </div>
+
+    <div class="sp"></div>
+
+    <div class="row">
+      <label for="buf">Buffer (jitter): <span id="bufv">100</span> ms</label>
+      <input id="buf" type="range" min="40" max="240" step="10" value="100" />
+      <label><input type="checkbox" id="hpf" checked> High-pass 100 Hz</label>
+      <label><input type="checkbox" id="lpf" checked> Low-pass 4.5 kHz</label>
+      <label><input type="checkbox" id="comp" checked> Compresor (voz)</label>
+    </div>
+
+    <div class="sp"></div>
+
+    <div class="meter"><div id="vu" class="bar"></div></div>
+    <small>Nivel (RMS aprox.)</small>
+
+    <p class="sp"></p>
+    <small>Tip: también puedes abrir con <code>?ws=wss://…&room=demo</code> en la URL.</small>
+  </div>
+
+  <script>
+  // Lee parámetros ?ws y ?room para autocompletar
+  (function () {
+    const p = new URLSearchParams(location.search);
+    const ws = p.get('ws'); const room = p.get('room');
+    if (ws) {
+      const val = ws + (ws.includes('room=') || !room ? '' : '&room=' + encodeURIComponent(room));
+      document.getElementById('ws').value = val;
+    } else if (room) {
+      const i = document.getElementById('ws');
+      if (!i.value.includes('room=')) i.value += (i.value.includes('?') ? '&' : '?') + 'room=' + encodeURIComponent(room);
+    }
+  })();
+
+  const vu  = document.getElementById('vu');
+  const buf = document.getElementById('buf');
+  const bufv= document.getElementById('bufv');
+  const hpfC= document.getElementById('hpf');
+  const lpfC= document.getElementById('lpf');
+  const cmpC= document.getElementById('comp');
+  buf.oninput = ()=> bufv.textContent = buf.value;
+
+  let ctx, worklet, socket;
+  let hpf, lpf, comp;
+
+  // Código del AudioWorklet: buffer de jitter + re-muestreo lineal + VU
+  const workletCode = `
+    class NetPlayer extends AudioWorkletProcessor {
+      constructor(){ super();
+        this.inRate = 16000;           // el ESP32 envía PCM16 @16 kHz
+        this.targetMs = 100;           // jitter objetivo
+        this.queue = [];               // cola de Float32
+        this.queued = 0;               // muestras en cola (a 16 kHz)
+        this.started = false;
+        this.port.onmessage = (e)=>{
+          const d = e.data;
+          if (d && d.type === 'cfg'){ this.targetMs = d.ms|0; return; }
+          // d es un ArrayBuffer con PCM16
+          const s16 = new Int16Array(d);
+          const f32 = new Float32Array(s16.length);
+          for (let i=0;i<s16.length;i++) f32[i] = s16[i]/32768;
+          this.queue.push(f32); this.queued += f32.length;
+        };
+      }
+      _resample(src,inR,outR){
+        if (inR===outR) return src;
+        const ratio = outR/inR;
+        const out = new Float32Array(Math.round(src.length*ratio));
+        for (let i=0;i<out.length;i++){
+          const x = i/ratio, xi = Math.floor(x), t = x - xi;
+          const a = src[xi] ?? 0, b = src[xi+1] ?? a;
+          out[i] = a + (b-a)*t;
+        }
+        return out;
+      }
+      process(_, outputs){
+        const out = outputs[0][0]; out.fill(0);
+        const want = Math.round(this.inRate*(this.targetMs/1000));
+        if (!this.started){ if (this.queued < want) return true; this.started = true; }
+        let w=0, acc=0, n=0;
+        while (w<out.length && this.queue.length){
+          let chunk = this.queue[0];
+          // re-muestrea al sampleRate del contexto (global)
+          chunk = this._resample(chunk, this.inRate, sampleRate);
+          const need = Math.min(out.length-w, chunk.length);
+          out.set(chunk.subarray(0,need), w);
+          for (let i=0;i<need;i++){ const v = chunk[i]; acc += v*v; }
+          n += need; w += need;
+          if (need < chunk.length){
+            this.queue[0] = chunk.subarray(need);
+            this.queued -= Math.round(need*(this.inRate/sampleRate));
+          } else {
+            this.queue.shift();
+            this.queued -= Math.round(chunk.length*(this.inRate/sampleRate));
+          }
+        }
+        if (n){
+          const vu = Math.sqrt(acc/n);
+          this.port.postMessage({type:'vu', v:vu});
+        }
+        return true;
+      }
+    }
+    registerProcessor('net-player', NetPlayer);
+  `;
+  const workletURL = URL.createObjectURL(new Blob([workletCode], {type:'application/javascript'}));
+
+  async function startAudio(){
+    if (!ctx){
+      const AC = window.AudioContext || window.webkitAudioContext;
+      ctx = new AC();
+      await ctx.audioWorklet.addModule(workletURL);
+      worklet = new AudioWorkletNode(ctx, 'net-player');
+      // Filtros (opcionales)
+      hpf = ctx.createBiquadFilter(); hpf.type='highpass'; hpf.frequency.value=100;
+      lpf = ctx.createBiquadFilter(); lpf.type='lowpass';  lpf.frequency.value=4500;
+      comp = ctx.createDynamicsCompressor();
+      // Cadena por defecto
+      updateChain();
+      worklet.port.onmessage = (e)=>{
+        if (e.data?.type==='vu'){
+          const db = 20*Math.log10(e.data.v+1e-6); // -inf..0
+          const pct = Math.min(100, Math.max(0, (db+60)/60*100));
+          vu.style.width = pct+'%';
+        }
+      };
+    }
+    if (ctx.state === 'suspended') await ctx.resume();
+  }
+
+  function updateChain(){
+    // Desconecta todo primero
+    try{ worklet.disconnect(); }catch{}
+    try{ hpf.disconnect(); }catch{}
+    try{ lpf.disconnect(); }catch{}
+    try{ comp.disconnect(); }catch{}
+    // Reconecta según checkboxes
+    let node = worklet;
+    if (hpfC.checked){ node.connect(hpf); node = hpf; }
+    if (lpfC.checked){ node.connect(lpf); node = lpf; }
+    if (cmpC.checked){ node.connect(comp); node = comp; }
+    node.connect(ctx.destination);
+  }
+  [hpfC,lpfC,cmpC].forEach(el=>el.addEventListener('change', ()=>{ if (ctx) updateChain(); }));
+
+  function connectWS(){
+    const url = document.getElementById('ws').value.trim();
+    try{ if (socket) socket.close(); }catch(_){}
+    socket = new WebSocket(url);
+    socket.binaryType = 'arraybuffer';
+    socket.onopen    = ()=>console.log('WS abierto');
+    socket.onclose   = ()=>console.log('WS cerrado');
+    socket.onerror   = (e)=>console.log('WS error', e);
+    socket.onmessage = (ev)=> {
+      // Enviamos el ArrayBuffer al worklet (transferencia cero-copia)
+      worklet.port.postMessage(ev.data, [ev.data]);
+    };
+  }
+
+  document.getElementById('play').onclick = async ()=>{
+    document.getElementById('play').disabled = true;
+    try{
+      await startAudio();
+      worklet.port.postMessage({type:'cfg', ms: parseInt(buf.value,10)});
+      connectWS();
+      document.getElementById('stop').disabled = false;
+    }catch(e){
+      alert('No se pudo iniciar audio: '+e);
+      document.getElementById('play').disabled = false;
+    }
+  };
+
+  document.getElementById('stop').onclick = ()=>{
+    try{ if (socket) socket.close(); }catch(_){}
+    try{ if (ctx && ctx.state!=='closed') ctx.suspend(); }catch(_){}
+    document.getElementById('stop').disabled = true;
+    document.getElementById('play').disabled = false;
+  };
+
+  buf.addEventListener('change', ()=>{ if (worklet) worklet.port.postMessage({type:'cfg', ms: parseInt(buf.value,10)}); });
+  </script>
+</body>
+</html>
